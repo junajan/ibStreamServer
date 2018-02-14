@@ -1,0 +1,8 @@
+{
+  "forex": [
+    "EUR/USD",
+    "EUR/CAD",
+    "USD/CAD"
+  ],
+  "debug": false
+}
