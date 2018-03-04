@@ -1,8 +1,12 @@
 const _ = require('lodash')
 require('colors')
+const path = require('path')
 const ibClient = require('ib')
 const moment = require('moment')
 const socketIo = require('socket.io')
+const dataStore = require('data-store')('lastPrices', {
+  cwd: path.join(__dirname, 'data-store')
+})
 const server = require('http').createServer()
 let config = null
 
@@ -69,7 +73,7 @@ const ib = new ibClient(ibConfig)
     if (!_.includes(filter, event))
       console.log(event, args)
   })
-  .on('nextValidId', (_nextValidId) => {
+  .once('nextValidId', (_nextValidId) => {
     console.log('[INFO]: IB Api connected')
     nextValidId = _nextValidId
     ib.emit('startProcessing')
@@ -83,13 +87,24 @@ const ib = new ibClient(ibConfig)
 
     streamings[tickerId].tickPrice(tickType, price)
   })
-  .on('startProcessing', () => {
+  .once('startProcessing', () => {
     console.log('[INFO]: Streaming ', forexTickers)
     forexTickers.forEach((ticker) => {
       ticker = ticker.split('/')
       _startStreaming(getStreamForexConfig(nextValidId++, ticker[1], ticker[0]))
     })
 
+    // set current prices from cache
+    const prices = dataStore.get()
+    for (let pair of Object.values(streamings)) {
+      const pairName1 = pair.conf.currency + '/' + pair.conf.symbol
+      const pairName2 = pair.conf.ticker
+
+      if (prices[pairName1] && !pair.prices[pairName1])
+        pair.prices[pairName1] = prices[pairName1]
+      if (prices[pairName2] && !pair.prices[pairName2])
+        pair.prices[pairName2] = prices[pairName2]
+    }
   })
 
 function getStreamForexConfig(id, currency, symbol) {
@@ -124,6 +139,7 @@ function getStreamForexConfig(id, currency, symbol) {
             time,
             price: priceReverse
           }
+          dataStore.set(ticker, this.prices[ticker])
         }
       }
 
@@ -137,6 +153,7 @@ function getStreamForexConfig(id, currency, symbol) {
             time,
             price
           }
+          dataStore.set(ticker, this.prices[ticker])
         }
       }
 
@@ -155,6 +172,9 @@ function getStreamForexConfig(id, currency, symbol) {
         this.lastAsk = price
       if (tickType === 'BID')
         this.lastBid = price
+      if (tickType === 'CLOSE' && this.lastBid === null && this.lastAsk === null)
+        this.lastAsk = this.lastBid = price
+
 
       if(config.debug)
         console.log('[DEBUG]: %s %s %f', tickType, this.conf.ticker, price)

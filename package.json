@@ -19,6 +19,7 @@
   "homepage": "https://github.com/junajan/ibStreamServer#readme",
   "dependencies": {
     "colors": "^1.1.2",
+    "data-store": "^1.0.0",
     "ib": "^0.2.4",
     "lodash": "^4.17.5",
     "moment": "^2.20.1",
