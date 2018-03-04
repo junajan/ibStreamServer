@@ -148,6 +148,9 @@ function getStreamForexConfig(id, currency, symbol) {
     },
     tickPrice: function (tickType, price) {
       tickType = ib.util.tickTypeToString(tickType)
+      if (price < 0)
+        return null
+
       if (tickType === 'ASK')
         this.lastAsk = price
       if (tickType === 'BID')
